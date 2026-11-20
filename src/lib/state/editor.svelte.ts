@@ -19,6 +19,7 @@ import {
 import type { CellChangeT } from '../model/voxelDoc'
 import type { AxisT, CellT, GroupMetaT, ProjectMetaT, ProjectT, Vec3T } from '../model/types'
 import { storeProject } from './gallery.svelte'
+import { startRotationAnimation } from './rotationAnimation'
 import { showToast } from './ui.svelte'
 import type { ToolActionIdT, ToolShapeIdT } from './tools'
 
@@ -890,6 +891,8 @@ export const rotateGroup = (groupId: string | string[], axis: AxisT, direction: 
 		showToast('No room to rotate there', 'danger')
 		return
 	}
+
+	startRotationAnimation(familyIds, pivot, axis, direction)
 
 	runEdit('rotate group', () => {
 		applyFamilyMove(plan)

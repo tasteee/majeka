@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { T } from '@threlte/core'
-	import type { Color, Material } from 'three'
+	import { T, useTask } from '@threlte/core'
+	import type { Color, Group, Material } from 'three'
+	import { applyRotationAnimation } from '../../state/rotationAnimation'
 	import { buildVoxelGeometry } from '../../model/mesher'
 	import { getCell, voxelDoc } from '../../model/voxelDoc'
 	import { checkIsVisibleSolid } from '../../state/editor.svelte'
@@ -36,10 +37,19 @@
 		return builtGeometry
 	})
 
+	let animatedGroup = $state.raw<Group>()
+
+	useTask(() => {
+		if (!animatedGroup) return
+		applyRotationAnimation(animatedGroup, props.groupId)
+	})
+
 	$effect(() => {
 		const currentGeometry = geometry
 		return () => currentGeometry.dispose()
 	})
 </script>
 
-<T.Mesh {geometry} material={props.material} castShadow receiveShadow />
+<T.Group bind:ref={animatedGroup}>
+	<T.Mesh {geometry} material={props.material} castShadow receiveShadow />
+</T.Group>
