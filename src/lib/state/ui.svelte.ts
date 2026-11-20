@@ -15,11 +15,12 @@ export type OverlayT =
 	| 'aimMenu'
 	| 'nameGroup'
 	| 'renameGroup'
+	| 'replaceColor'
 
 export type ToastT = {
 	id: number
 	message: string
-	tone: 'neutral' | 'danger'
+	tone: 'neutral' | 'danger' | 'warning'
 }
 
 export const ui = $state({

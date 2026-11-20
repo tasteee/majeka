@@ -28,7 +28,7 @@ export const TOOL_ACTIONS: ToolActionInfoT[] = [
 	{ id: 'paint', name: 'Paint', hint: 'Paint', keyActionId: 'actionPaint', takesShape: true },
 	{ id: 'select', name: 'Select', hint: 'Select', keyActionId: 'actionSelect', takesShape: true },
 	{ id: 'extrude', name: 'Extrude', hint: 'Hold on a face, drag up to grow, drag down to shrink', keyActionId: 'actionExtrude', takesShape: false },
-	{ id: 'object', name: 'Object', hint: 'Click to select a group, arrows move, R rotates', keyActionId: 'actionObject', takesShape: false },
+	{ id: 'object', name: 'Move', hint: 'Click a group; Shift-click to select more. Arrows move across the floor; Shift+Up/Down moves vertically (Y). Ctrl+Left/Right rotates Y; Ctrl+Up/Down rotates X; Alt+Left/Right rotates Z', keyActionId: 'actionObject', takesShape: false },
 	{ id: 'pivot', name: 'Pivot', hint: 'Click a voxel to snap the pivot, arrows nudge', keyActionId: 'actionPivot', takesShape: false }
 ]
 
@@ -74,7 +74,7 @@ export const checkIsStampActive = (actionId: ToolActionIdT, shapeId: ToolShapeId
 export const getShapeAllowedLabel = (shapeId: ToolShapeIdT): string => {
 	const allowedActionIds = ALLOWED_ACTIONS_BY_SHAPE[shapeId]
 	const allowedNames = allowedActionIds.map((actionId) => findToolAction(actionId).name)
-	return `${findToolShape(shapeId).name} works with ${allowedNames.join(', ')}`
+	return `${findToolShape(shapeId).name} only works with ${allowedNames.join(', ')} modes`
 }
 
 export const getToolHint = (actionId: ToolActionIdT, shapeId: ToolShapeIdT): string => {

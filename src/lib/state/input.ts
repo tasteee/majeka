@@ -6,6 +6,8 @@ export const input = {
 	heldCodes: new Set<string>(),
 	lookDeltaX: 0,
 	lookDeltaY: 0,
+	forwardDelta: 0,
+	strafeDelta: 0,
 	// tool drag (extrude / stamp depth) eats mouse movement
 	isLookFrozen: false,
 	dragDeltaY: 0
@@ -31,6 +33,8 @@ export const resetHeldInput = (): void => {
 	input.heldCodes.clear()
 	input.lookDeltaX = 0
 	input.lookDeltaY = 0
+	input.forwardDelta = 0
+	input.strafeDelta = 0
 	input.dragDeltaY = 0
 	input.isLookFrozen = false
 }

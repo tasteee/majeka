@@ -5,6 +5,7 @@
 }
 
 .groups-row {
+	position: relative;
 	display: flex;
 	align-items: center;
 	gap: 2px;
@@ -69,6 +70,16 @@
 	border-left-color: var(--accent);
 }
 
+.groups-row.isSelected .groups-name {
+	color: var(--foreground);
+}
+
+.groups-name:focus-visible,
+.groups-toggle:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
 .groups-row.isHidden .groups-label {
 	opacity: 0.5;
 }
@@ -90,3 +101,9 @@
 .groups-toggle:hover {
 	color: var(--foreground);
 }
+
+.group-transforms { display: flex; flex-direction: column; gap: 8px; padding: 8px; font-size: 11px; }
+.group-transforms fieldset { display: flex; flex-wrap: wrap; gap: 4px; border: 0; padding: 0; margin: 0; }
+.group-transforms legend { margin-bottom: 5px; }
+.group-transforms button { border: 1px solid var(--paper-soft); border-radius: 5px; background: var(--paper-soft); color: inherit; padding: 5px 8px; cursor: pointer; }
+.group-transforms button:hover { color: var(--accent); }

@@ -8,7 +8,8 @@
 		"build": "vite build",
 		"build:site": "svelte-check --tsconfig ./tsconfig.json && vite build --outDir ../blog/dist/voxel --emptyOutDir",
 		"preview": "vite preview --port 5178",
-		"typecheck": "svelte-check --tsconfig ./tsconfig.json"
+		"typecheck": "svelte-check --tsconfig ./tsconfig.json",
+		"test:colors": "node tests/run.mjs"
 	},
 	"dependencies": {
 		"@tasteee/zest": "github:tasteee/zest#build",

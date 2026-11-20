@@ -1,0 +1,48 @@
+.hover-info {
+	position: absolute;
+	left: 50%;
+	bottom: var(--space-xs);
+	transform: translateX(-50%);
+	width: 70vw;
+	padding: var(--space-xs) var(--space-sm);
+	border-top: 1px solid var(--line);
+	box-sizing: border-box;
+	pointer-events: auto;
+}
+
+.hover-info-viewport {
+	overflow: hidden;
+	min-height: 1.25rem;
+}
+
+.hover-info-warning {
+	color: var(--warning);
+	font-weight: 700;
+	margin-inline-end: 0.5em;
+}
+
+.hover-info-text {
+	width: max-content;
+	margin-inline: auto;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.hover-info-text.isScrolling {
+	animation: info-marquee var(--info-duration) linear infinite alternate;
+}
+
+.hover-info:hover .hover-info-text {
+	animation-play-state: paused;
+}
+
+@keyframes info-marquee {
+	0%, 15% { transform: translateX(0); }
+	85%, 100% { transform: translateX(var(--info-travel)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hover-info { pointer-events: auto; }
+	.hover-info-viewport { overflow-x: auto; }
+	.hover-info-text.isScrolling { animation: none; }
+}

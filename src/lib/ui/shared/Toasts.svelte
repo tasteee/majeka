@@ -5,6 +5,7 @@
 	const getToastClass = (tone: string): string => {
 		const isDanger = tone === 'danger'
 		if (isDanger) return 'toast isDanger'
+		if (tone === 'warning') return 'toast isWarning'
 		return 'toast'
 	}
 </script>

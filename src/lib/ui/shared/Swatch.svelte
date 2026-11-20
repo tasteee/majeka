@@ -6,6 +6,7 @@
 		isSelected?: boolean
 		size?: 'small' | 'medium'
 		label?: string
+		showTooltip?: boolean
 		onselect: () => void
 		oncontext?: () => void
 	}
@@ -25,4 +26,11 @@
 </script>
 
 <!-- The color is data, so it is the one inline style here. -->
-<button type="button" class={swatchClass} style:--swatch-color={props.color} aria-label={ariaLabel} title={ariaLabel} onclick={props.onselect} oncontextmenu={handleContextMenu}></button>
+{#snippet button()}
+	<button type="button" class={swatchClass} style:--swatch-color={props.color} aria-label={ariaLabel} onclick={props.onselect} oncontextmenu={handleContextMenu}></button>
+{/snippet}
+{#if props.showTooltip !== false}
+	<z-tooltip content={ariaLabel} placement="top">{@render button()}</z-tooltip>
+{:else}
+	{@render button()}
+{/if}
