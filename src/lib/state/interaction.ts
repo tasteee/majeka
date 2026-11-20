@@ -16,7 +16,6 @@ import {
 	editor,
 	findColorRegion,
 	getMeta,
-	moveGroup,
 	nudgeGroupPivot,
 	paintCells,
 	paintSelection,
@@ -24,7 +23,9 @@ import {
 	placeCells,
 	planExtrude,
 	removeCells,
-	rotateGroup,
+	rotateSelectedGroups,
+	moveSelectedGroups,
+	clearGroupSelection,
 	runSelectionEdit,
 	selectGroup,
 	selection,
@@ -393,16 +394,16 @@ const handleFillClick = (aim: AimT, modifiers: ClickModifiersT): void => {
 	selectCells(selectableRegion, modifiers.isShift)
 }
 
-const handleObjectClick = (aim: AimT): void => {
+const handleObjectClick = (aim: AimT, additive: boolean): void => {
 	const isVoxel = aim.kind === 'voxel'
 
 	if (!isVoxel) {
-		editor.selectedGroupId = ''
+		if (!additive) clearGroupSelection()
 		return
 	}
 
 	const cell = getCell(toCellKeyFromVec(aim.cell))
-	if (cell) selectGroup(cell.groupId)
+	if (cell) selectGroup(cell.groupId, additive)
 }
 
 export const getPivotTargetGroupId = (): string => {
@@ -431,7 +432,7 @@ export const handleWorkspacePress = (modifiers: ClickModifiersT): void => {
 	if (isEyedropper) return pickColorFromCell(aim.cell)
 	const action = editor.action
 	if (action === 'extrude') return startExtrude(aim)
-	if (action === 'object') return handleObjectClick(aim)
+	if (action === 'object') return handleObjectClick(aim, modifiers.isShift)
 	if (action === 'pivot') return handlePivotClick(aim)
 	const shape = editor.shape
 	if (shape === 'block') return handleBlockClick(aim, modifiers)
@@ -475,7 +476,7 @@ export const handleNudge = (nudge: 'left' | 'right' | 'forward' | 'back' | 'up' 
 	const hasSelectedGroup = editor.selectedGroupId !== ''
 	const isObjectTool = editor.action === 'object'
 	const canMoveGroup = isObjectTool && hasSelectedGroup
-	if (canMoveGroup) moveGroup(editor.selectedGroupId, step)
+	if (canMoveGroup) moveSelectedGroups(step)
 }
 
 // R rotates the stamp, or the selected group about Y.
@@ -489,7 +490,7 @@ export const handleRotate = (): void => {
 	}
 
 	const hasSelectedGroup = editor.selectedGroupId !== ''
-	if (hasSelectedGroup) rotateGroup(editor.selectedGroupId, 1)
+	if (hasSelectedGroup) rotateSelectedGroups(1)
 }
 
 // Tilts around the horizontal axis you are looking across.
@@ -498,7 +499,7 @@ export const handleTilt = (): void => {
 	if (!hasSelectedGroup) return
 	const forward = getViewStep('forward')
 	const tiltAxis: AxisT = getNormalAxis(forward) === 0 ? 2 : 0
-	rotateGroup(editor.selectedGroupId, tiltAxis)
+	rotateSelectedGroups(tiltAxis)
 }
 
 export const handleInteract = (): void => {

@@ -26,6 +26,12 @@
 	border-color: var(--destructive);
 }
 
+.toast.isWarning {
+	border-color: var(--warning);
+	background: var(--warning);
+	color: var(--color-neutral-0);
+}
+
 @keyframes toast-in {
 	from {
 		opacity: 0;

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import TopBar from './TopBar.svelte'
 	import ToolBar from './ToolBar.svelte'
+	import HoverInfo from './HoverInfo.svelte'
 	import StampPicker from './StampPicker.svelte'
 	import SelectionBar from './SelectionBar.svelte'
 	import ToolWheel from './ToolWheel.svelte'
 	import ColorPanel from './ColorPanel.svelte'
-	import ProjectColorsPanel from './ProjectColorsPanel.svelte'
 	import GroupsPanel from './GroupsPanel.svelte'
 	import Crosshair from '../shared/Crosshair.svelte'
 	import ResumePrompt from '../shared/ResumePrompt.svelte'
@@ -37,9 +37,6 @@
 		{#if editor.isColorsOpen}
 			<ColorPanel meta={props.meta} />
 		{/if}
-		{#if editor.isProjectColorsOpen}
-			<ProjectColorsPanel meta={props.meta} />
-		{/if}
 	</div>
 
 	<div class="workspace-right">
@@ -57,6 +54,7 @@
 		{/if}
 		<ToolBar />
 	</div>
+	<HoverInfo />
 
 	{#if isCrosshairVisible}
 		<Crosshair />

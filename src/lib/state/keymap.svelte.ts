@@ -32,6 +32,14 @@ export type ActionIdT =
 	| 'redo'
 	| 'rotate'
 	| 'rotateTilt'
+	| 'nudgeVerticalUp'
+	| 'nudgeVerticalDown'
+	| 'rotateYNegative'
+	| 'rotateYPositive'
+	| 'rotateXNegative'
+	| 'rotateXPositive'
+	| 'rotateZNegative'
+	| 'rotateZPositive'
 	| 'nudgeLeft'
 	| 'nudgeRight'
 	| 'nudgeForward'
@@ -53,6 +61,14 @@ export type ActionInfoT = {
 }
 
 export const ACTIONS: ActionInfoT[] = [
+	{ id: 'nudgeVerticalUp', label: 'Move up (vertical)', section: 'Groups', isHeld: false },
+	{ id: 'nudgeVerticalDown', label: 'Move down (vertical)', section: 'Groups', isHeld: false },
+	{ id: 'rotateYNegative', label: 'Rotate Y −90°', section: 'Groups', isHeld: false },
+	{ id: 'rotateYPositive', label: 'Rotate Y +90°', section: 'Groups', isHeld: false },
+	{ id: 'rotateXNegative', label: 'Rotate X −90°', section: 'Groups', isHeld: false },
+	{ id: 'rotateXPositive', label: 'Rotate X +90°', section: 'Groups', isHeld: false },
+	{ id: 'rotateZNegative', label: 'Rotate Z −90°', section: 'Groups', isHeld: false },
+	{ id: 'rotateZPositive', label: 'Rotate Z +90°', section: 'Groups', isHeld: false },
 	{ id: 'moveForward', label: 'Move forward', section: 'Move', isHeld: true },
 	{ id: 'moveBack', label: 'Move back', section: 'Move', isHeld: true },
 	{ id: 'moveLeft', label: 'Move left', section: 'Move', isHeld: true },
@@ -72,7 +88,7 @@ export const ACTIONS: ActionInfoT[] = [
 	{ id: 'shapeSquare', label: 'Shape: square', section: 'Build', isHeld: false },
 	{ id: 'shapeFill', label: 'Shape: fill', section: 'Build', isHeld: false },
 	{ id: 'shapeStamp', label: 'Shape: prefab stamp', section: 'Build', isHeld: false },
-	{ id: 'actionObject', label: 'Mode: object', section: 'Build', isHeld: false },
+	{ id: 'actionObject', label: 'Mode: move', section: 'Build', isHeld: false },
 	{ id: 'actionPivot', label: 'Mode: pivot', section: 'Build', isHeld: false },
 	{ id: 'toggleErase', label: 'Swap place / erase', section: 'Build', isHeld: false },
 	{ id: 'rotate', label: 'Rotate stamp / group', section: 'Build', isHeld: false },
@@ -96,6 +112,14 @@ export const ACTIONS: ActionInfoT[] = [
 ]
 
 export const DEFAULT_BINDINGS: Record<ActionIdT, string> = {
+	nudgeVerticalUp: 'Shift+ArrowUp',
+	nudgeVerticalDown: 'Shift+ArrowDown',
+	rotateYNegative: 'Ctrl+ArrowLeft',
+	rotateYPositive: 'Ctrl+ArrowRight',
+	rotateXNegative: 'Ctrl+ArrowUp',
+	rotateXPositive: 'Ctrl+ArrowDown',
+	rotateZNegative: 'Alt+ArrowLeft',
+	rotateZPositive: 'Alt+ArrowRight',
 	moveForward: 'KeyW',
 	moveBack: 'KeyS',
 	moveLeft: 'KeyA',

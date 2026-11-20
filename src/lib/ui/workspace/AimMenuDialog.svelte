@@ -62,13 +62,14 @@
 
 	const selectForObjectMode = (): void => {
 		runAndClose(() => {
-			selectGroup(ui.overlayGroupId)
 			setAction('object')
+			selectGroup(ui.overlayGroupId)
 		})
 	}
 
 	const editPivot = (): void => {
 		runAndClose(() => {
+			editor.additionalGroupIds = []
 			editor.selectedGroupId = ui.overlayGroupId
 			setAction('pivot')
 		})

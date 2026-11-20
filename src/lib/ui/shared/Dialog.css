@@ -1,4 +1,10 @@
 /* z-dialog takes its width from --z-dialog-width (zest 0.9). */
+.app-dialog {
+	/* HUDs let pointer input pass through to the scene. Modal content
+	   must opt back in, even when promoted into the browser top layer. */
+	pointer-events: auto;
+}
+
 .app-dialog.isSmall {
 	--z-dialog-width: 24rem;
 }

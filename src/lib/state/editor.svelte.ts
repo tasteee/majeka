@@ -2,6 +2,7 @@ import { SvelteSet } from 'svelte/reactivity'
 import { checkIsInsideRoom, fromCellKey, toCellKey, toCellKeyFromVec } from '../model/cellKey'
 import { checkIsGroupHidden, checkIsGroupLocked, computeGroupCenter, findGroup, getGroupFamilyIds } from '../model/groups'
 import { createGroupMeta } from '../model/project'
+import { getUsedProjectColors, planColorReplacement } from '../model/projectColors'
 import type { PresetPaletteT } from '../model/presetPalettes'
 import { findConnectedCells } from '../model/shapes'
 import {
@@ -33,6 +34,8 @@ export const editor = $state({
 	prefabTurns: 0,
 	// the group picked with the object or pivot tool
 	selectedGroupId: '',
+	additionalGroupIds: [] as string[],
+	sharedGroupPivot: null as Vec3T | null,
 	// bumps per group when its mesh must be rebuilt
 	meshVersions: {} as Record<string, number>,
 	canUndo: false,
@@ -187,10 +190,11 @@ const afterDocChange = (): void => {
 // Every edit runs through here, so every edit is undoable:
 // voxel changes are recorded cell by cell and the rest of the
 // project (groups, colors, pivots) is snapshotted.
-export const runEdit = (label: string, mutate: () => void): boolean => {
+export const runEdit = (label: string, mutate: () => void, recordSelection = false): boolean => {
 	const meta = editor.meta
 	if (!meta) return false
 	const metaBefore = snapshotMeta()
+	const selectionBefore = recordSelection ? [...selection] : null
 	startRecordingChanges()
 	mutate()
 	const changes = stopRecordingChanges()
@@ -205,7 +209,7 @@ export const runEdit = (label: string, mutate: () => void): boolean => {
 		return false
 	}
 
-	undoStack.push({ label, changes, metaBefore, metaAfter, selectionBefore: null, selectionAfter: null })
+	undoStack.push({ label, changes, metaBefore, metaAfter, selectionBefore, selectionAfter: recordSelection ? [...selection] : null })
 	const isTooLong = undoStack.length > MAX_HISTORY
 	if (isTooLong) undoStack = undoStack.slice(-MAX_HISTORY)
 	redoStack = []
@@ -258,10 +262,11 @@ export const runSelectionEdit = (label: string, mutate: () => void): void => {
 }
 
 export const undo = (): void => {
+	editor.sharedGroupPivot = null
 	const entry = undoStack.pop()
 	if (!entry) return
 	redoStack.push(entry)
-	const isSelectionEntry = entry.selectionBefore !== null
+	const isSelectionEntry = entry.metaBefore === ''
 
 	if (isSelectionEntry) {
 		replaceSelection(entry.selectionBefore ?? [])
@@ -272,16 +277,17 @@ export const undo = (): void => {
 
 	applyMetaText(entry.metaBefore)
 	applyChanges(entry.changes, true)
-	selection.clear()
+	replaceSelection(entry.selectionBefore ?? [])
 	afterDocChange()
 	showToast(`Undo ${entry.label}`)
 }
 
 export const redo = (): void => {
+	editor.sharedGroupPivot = null
 	const entry = redoStack.pop()
 	if (!entry) return
 	undoStack.push(entry)
-	const isSelectionEntry = entry.selectionAfter !== null
+	const isSelectionEntry = entry.metaAfter === ''
 
 	if (isSelectionEntry) {
 		replaceSelection(entry.selectionAfter ?? [])
@@ -292,7 +298,7 @@ export const redo = (): void => {
 
 	applyMetaText(entry.metaAfter)
 	applyChanges(entry.changes, false)
-	selection.clear()
+	replaceSelection(entry.selectionAfter ?? [])
 	afterDocChange()
 	showToast(`Redo ${entry.label}`)
 }
@@ -316,7 +322,7 @@ export const loadProjectIntoEditor = (project: ProjectT): void => {
 
 	editor.meta = { ...project, groups }
 	editor.meshVersions = {}
-	editor.selectedGroupId = ''
+	clearGroupSelection()
 	editor.action = 'place'
 	editor.shape = 'block'
 	undoStack = []
@@ -388,29 +394,27 @@ export const removeFromPalette = (colorIndex: number): void => {
 	})
 }
 
-// Recolor replaces the color itself, so every voxel pointing
-// at that index changes at once.
-export const recolorProjectColor = (colorIndex: number, hexColor: string): void => {
-	runEdit('recolor', () => {
-		const meta = getMeta()
-		meta.colors[colorIndex] = normalizeHex(hexColor)
-	})
-	rebuildAllMeshes()
+// Version arguments make plain voxel-map reads reactive in panels.
+export const listProjectColors = (_docVersion: number) => getUsedProjectColors(getMeta(), voxelDoc.cells)
+
+export const previewColorReplacement = (source: string, target: string, groupId: string | null, _docVersion: number) => {
+	return planColorReplacement(getMeta(), voxelDoc.cells, source, target, groupId)
 }
 
-// Counts voxels per color index, for the project colors panel.
-// docVersion is only passed so reactive callers re-run.
-export const countColorUsage = (docVersion: number): Map<number, number> => {
-	const usage = new Map<number, number>()
-	const isUnloaded = docVersion < 0
-	if (isUnloaded) return usage
-
-	for (const cell of voxelDoc.cells.values()) {
-		const currentCount = usage.get(cell.colorIndex) ?? 0
-		usage.set(cell.colorIndex, currentCount + 1)
+export const replaceProjectColor = (source: string, target: string, groupId: string | null): void => {
+	const plan = planColorReplacement(getMeta(), voxelDoc.cells, source, target, groupId)
+	if (plan.keys.length > 0) {
+		runEdit('replace color', () => {
+			const colorIndex = getOrAddColorIndex(target)
+			for (const key of plan.keys) {
+				const cell = getCell(key)
+				if (cell) setCell(key, { ...cell, colorIndex })
+			}
+			markColorUsed(colorIndex)
+		})
 	}
-
-	return usage
+	const skipped = plan.skippedLocked > 0 ? ` · ${plan.skippedLocked.toLocaleString()} locked voxels skipped` : ''
+	showToast(`Replaced ${plan.keys.length.toLocaleString()} voxels${skipped}`)
 }
 
 export const pickColorFromCell = (cellPosition: Vec3T): void => {
@@ -732,14 +736,51 @@ export const deleteGroup = (groupId: string): void => {
 		if (isActiveRemoved) editMeta.activeGroupId = editMeta.groups[0].id
 	})
 
-	const isSelectedRemoved = familyIds.includes(editor.selectedGroupId)
-	if (isSelectedRemoved) editor.selectedGroupId = ''
+	const remaining = getSelectedGroupIds().filter((id) => !familyIds.includes(id))
+	editor.selectedGroupId = remaining[0] ?? ''
+	editor.additionalGroupIds = remaining.slice(1)
+	editor.sharedGroupPivot = null
 }
 
-export const selectGroup = (groupId: string): void => {
-	editor.selectedGroupId = groupId
-	setActiveGroup(groupId)
+export const getSelectedGroupIds = (): string[] => editor.selectedGroupId
+	? [editor.selectedGroupId, ...editor.additionalGroupIds].filter((id) => editor.meta?.groups.some((group) => group.id === id)) : []
+
+export const clearGroupSelection = (): void => {
+	editor.selectedGroupId = ''
+	editor.additionalGroupIds = []
+	editor.sharedGroupPivot = null
 }
+
+export const selectGroupsFromVoxelSelection = (): void => {
+	const ids = [...new Set([...selection].flatMap((key) => {
+		const cell = getCell(key)
+		return cell ? [cell.groupId] : []
+	}))]
+	if (!ids.length) return
+	editor.selectedGroupId = ids[0]
+	editor.additionalGroupIds = ids.slice(1)
+	editor.sharedGroupPivot = null
+}
+
+export const selectGroup = (groupId: string, additive = false): void => {
+	editor.sharedGroupPivot = null
+	const ids = additive ? getSelectedGroupIds() : []
+	const next = ids.includes(groupId) ? ids.filter((id) => id !== groupId) : [...ids, groupId]
+	editor.selectedGroupId = next[0] ?? ''
+	editor.additionalGroupIds = next.slice(1)
+	if (next.includes(groupId)) setActiveGroup(groupId)
+}
+
+export const selectAllGroups = (): void => {
+	editor.sharedGroupPivot = null
+	const ids = getMeta().groups.filter((g) => !checkIsGroupHidden(getMeta().groups, g.id) && !checkIsGroupLocked(getMeta().groups, g.id)).map((g) => g.id)
+	editor.selectedGroupId = ids[0] ?? ''
+	editor.additionalGroupIds = ids.slice(1)
+}
+
+const getTransformFamily = (ids: string[]): string[] => [...new Set(ids.flatMap((id) => getGroupFamilyIds(getMeta().groups, id)))]
+export const moveSelectedGroups = (offset: Vec3T): void => moveGroup(getSelectedGroupIds(), offset)
+export const rotateSelectedGroups = (axis: AxisT, direction: 1 | -1 = 1): void => rotateGroup(getSelectedGroupIds(), axis, direction)
 
 type MovePlanT = {
 	moves: { from: number; to: number; cell: CellT }[]
@@ -768,8 +809,13 @@ const planFamilyMove = (familyIds: string[], mapPosition: (position: Vec3T) => V
 }
 
 const applyFamilyMove = (plan: MovePlanT): void => {
+	// Map from the original selection before changing any keys: targets can
+	// overlap other selected source cells during a move or rotation.
+	const destinations = new Map(plan.moves.map((move) => [move.from, move.to]))
+	const nextSelection = [...selection].map((key) => destinations.get(key) ?? key)
 	for (const move of plan.moves) setCell(move.from, null)
 	for (const move of plan.moves) setCell(move.to, move.cell)
+	replaceSelection(nextSelection)
 }
 
 const checkCanEditGroup = (groupId: string): boolean => {
@@ -779,10 +825,9 @@ const checkCanEditGroup = (groupId: string): boolean => {
 	return false
 }
 
-export const moveGroup = (groupId: string, offset: Vec3T): void => {
-	const canEdit = checkCanEditGroup(groupId)
-	if (!canEdit) return
-	const familyIds = getGroupFamilyIds(getMeta().groups, groupId)
+export const moveGroup = (groupId: string | string[], offset: Vec3T): void => {
+	const familyIds = getTransformFamily(typeof groupId === 'string' ? [groupId] : groupId)
+	if (!familyIds.length || !familyIds.every(checkCanEditGroup)) return
 
 	const plan = planFamilyMove(familyIds, (position) => {
 		const target: Vec3T = [position[0] + offset[0], position[1] + offset[1], position[2] + offset[2]]
@@ -796,35 +841,47 @@ export const moveGroup = (groupId: string, offset: Vec3T): void => {
 
 	runEdit('move group', () => {
 		applyFamilyMove(plan)
+		if (editor.sharedGroupPivot) editor.sharedGroupPivot = editor.sharedGroupPivot.map((value, a) => value + offset[a]) as Vec3T
 
 		for (const familyId of familyIds) {
 			const group = findGroup(getMeta().groups, familyId)
 			if (!group) continue
 			group.pivot = [group.pivot[0] + offset[0], group.pivot[1] + offset[1], group.pivot[2] + offset[2]]
 		}
-	})
+	}, true)
 }
 
 // Quarter turn of a point around a pivot, about one axis.
-const rotatePointQuarter = (point: Vec3T, pivot: Vec3T, axis: AxisT): Vec3T => {
+const rotatePointQuarter = (point: Vec3T, pivot: Vec3T, axis: AxisT, direction: 1 | -1 = 1): Vec3T => {
 	const relative: Vec3T = [point[0] - pivot[0], point[1] - pivot[1], point[2] - pivot[2]]
-	if (axis === 1) return [pivot[0] + relative[2], pivot[1] + relative[1], pivot[2] - relative[0]]
-	if (axis === 0) return [pivot[0] + relative[0], pivot[1] - relative[2], pivot[2] + relative[1]]
-	return [pivot[0] - relative[1], pivot[1] + relative[0], pivot[2] + relative[2]]
+	if (axis === 1) return [pivot[0] + direction * relative[2], pivot[1] + relative[1], pivot[2] - direction * relative[0]]
+	if (axis === 0) return [pivot[0] + relative[0], pivot[1] - direction * relative[2], pivot[2] + direction * relative[1]]
+	return [pivot[0] - direction * relative[1], pivot[1] + direction * relative[0], pivot[2] + relative[2]]
 }
 
-export const rotateGroup = (groupId: string, axis: AxisT): void => {
-	const canEdit = checkCanEditGroup(groupId)
-	if (!canEdit) return
+export const rotateGroup = (groupId: string | string[], axis: AxisT, direction: 1 | -1 = 1): void => {
+	const ids = typeof groupId === 'string' ? [groupId] : groupId
+	const familyIds = getTransformFamily(ids)
+	if (!familyIds.length || !familyIds.every(checkCanEditGroup)) return
 	const meta = getMeta()
-	const rootGroup = findGroup(meta.groups, groupId)
+	const rootGroup = findGroup(meta.groups, ids[0])
 	if (!rootGroup) return
-	const pivot: Vec3T = [...rootGroup.pivot]
-	const familyIds = getGroupFamilyIds(meta.groups, groupId)
+	let pivot: Vec3T = [...rootGroup.pivot]
+	if (ids.length > 1 && editor.sharedGroupPivot) pivot = [...editor.sharedGroupPivot]
+	else if (ids.length > 1) {
+		const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity]
+		for (const id of familyIds) for (const key of getGroupKeys(id)) {
+			const p = fromCellKey(key)
+			for (let a = 0; a < 3; a++) { min[a] = Math.min(min[a], p[a]); max[a] = Math.max(max[a], p[a]) }
+		}
+		if (!Number.isFinite(min[0])) return
+		// Snap the shared center to voxel corners to preserve the grid on every axis.
+		pivot = min.map((value, a) => Math.round((value + max[a] + 1) / 2)) as Vec3T
+	}
 
 	const plan = planFamilyMove(familyIds, (position) => {
 		const center: Vec3T = [position[0] + 0.5, position[1] + 0.5, position[2] + 0.5]
-		const rotatedCenter = rotatePointQuarter(center, pivot, axis)
+		const rotatedCenter = rotatePointQuarter(center, pivot, axis, direction)
 		const target: Vec3T = [Math.floor(rotatedCenter[0]), Math.floor(rotatedCenter[1]), Math.floor(rotatedCenter[2])]
 		return target
 	})
@@ -836,13 +893,14 @@ export const rotateGroup = (groupId: string, axis: AxisT): void => {
 
 	runEdit('rotate group', () => {
 		applyFamilyMove(plan)
+		if (ids.length > 1) editor.sharedGroupPivot = [...pivot]
 
 		for (const familyId of familyIds) {
 			const group = findGroup(getMeta().groups, familyId)
 			if (!group) continue
-			group.pivot = rotatePointQuarter(group.pivot, pivot, axis)
+			group.pivot = rotatePointQuarter(group.pivot, pivot, axis, direction)
 		}
-	})
+	}, true)
 }
 
 export const setGroupPivot = (groupId: string, pivot: Vec3T): void => {

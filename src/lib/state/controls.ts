@@ -1,4 +1,4 @@
-import { deleteSelection, editor, redo, runSelectionEdit, selection, undo } from './editor.svelte'
+import { deleteSelection, editor, redo, runSelectionEdit, selection, selectGroupsFromVoxelSelection, rotateSelectedGroups, undo } from './editor.svelte'
 import { gallery, NEW_PEDESTAL_ID, persistLayout } from './gallery.svelte'
 import { MOUSE_SENSITIVITY, input, resetHeldInput } from './input'
 import {
@@ -36,6 +36,7 @@ export const requestFlying = (): void => {
 
 export const setAction = (actionId: ToolActionIdT): void => {
 	cancelToolSession()
+	if (actionId === 'object' && editor.action !== 'object') selectGroupsFromVoxelSelection()
 	editor.action = actionId
 	const isShapeAllowed = checkIsShapeAllowed(actionId, editor.shape)
 	const shouldResetShape = checkActionTakesShape(actionId) && !isShapeAllowed
@@ -51,7 +52,7 @@ export const setShape = (shapeId: ToolShapeIdT): void => {
 	const isAllowed = checkIsShapeAllowed(nextAction, shapeId)
 
 	if (!isAllowed) {
-		showToast(getShapeAllowedLabel(shapeId))
+		showToast(getShapeAllowedLabel(shapeId), 'warning')
 		return
 	}
 
@@ -152,6 +153,19 @@ const runWorkspaceAction = (actionId: ActionIdT): boolean => {
 		return true
 	}
 
+	if (actionId === 'nudgeVerticalUp') return runNudge('up')
+	if (actionId === 'nudgeVerticalDown') return runNudge('down')
+	const axisRotations = {
+		rotateXNegative: [0, -1], rotateXPositive: [0, 1],
+		rotateYNegative: [1, -1], rotateYPositive: [1, 1],
+		rotateZNegative: [2, -1], rotateZPositive: [2, 1]
+	} as const
+	if (actionId in axisRotations) {
+		if (editor.action !== 'object') return false
+		const [axis, direction] = axisRotations[actionId as keyof typeof axisRotations]
+		rotateSelectedGroups(axis, direction)
+		return true
+	}
 	if (actionId === 'nudgeLeft') return runNudge('left')
 	if (actionId === 'nudgeRight') return runNudge('right')
 	if (actionId === 'nudgeForward') return runNudge('forward')
@@ -342,6 +356,22 @@ const handleMouseMove = (mouseEvent: MouseEvent): void => {
 	input.lookDeltaY += mouseEvent.movementY * MOUSE_SENSITIVITY
 }
 
+const handleWheel = (wheelEvent: WheelEvent): void => {
+	const isOnTarget = lockTarget !== null && wheelEvent.composedPath().includes(lockTarget)
+	if (!ui.isPointerLocked && !isOnTarget) return
+	if (checkIsOverlayOpen()) return
+	wheelEvent.preventDefault()
+	if (ui.isToolWheelOpen || input.isLookFrozen || checkIsSessionBusy()) return
+
+	// Wheel deltas can be pixels, lines, or pages. Pinch gestures arrive
+	// as ctrl+wheel with smaller deltas than two-finger scrolling.
+	const unit = wheelEvent.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16
+		: wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PAGE ? window.innerHeight : 1
+	const sensitivity = wheelEvent.ctrlKey ? 0.01 : 0.002
+	input.forwardDelta -= wheelEvent.deltaY * unit * sensitivity
+	input.strafeDelta += wheelEvent.deltaX * unit * sensitivity
+}
+
 const handleGalleryPress = (): void => {
 	const movingId = gallery.movingProjectId
 	const isMoving = movingId !== ''
@@ -415,6 +445,7 @@ export const setupControls = (): (() => void) => {
 	window.addEventListener('mousemove', handleMouseMove)
 	window.addEventListener('mousedown', handleMouseDown)
 	window.addEventListener('mouseup', handleMouseUp)
+	window.addEventListener('wheel', handleWheel, { passive: false })
 	window.addEventListener('blur', resetHeldInput)
 	window.addEventListener('contextmenu', preventContextMenu)
 	document.addEventListener('pointerlockchange', handlePointerLockChange)
@@ -426,6 +457,7 @@ export const setupControls = (): (() => void) => {
 		window.removeEventListener('mousemove', handleMouseMove)
 		window.removeEventListener('mousedown', handleMouseDown)
 		window.removeEventListener('mouseup', handleMouseUp)
+		window.removeEventListener('wheel', handleWheel)
 		window.removeEventListener('blur', resetHeldInput)
 		window.removeEventListener('contextmenu', preventContextMenu)
 		document.removeEventListener('pointerlockchange', handlePointerLockChange)

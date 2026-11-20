@@ -17,6 +17,8 @@
 	<z-text size="sm" color="muted">Click anywhere to fly</z-text>
 	<div class="fly-prompt-keys">
 		<span class="fly-prompt-key"><KeyCombo combo={moveCombo} /> move</span>
+		<span class="fly-prompt-key">Pinch / scroll to move forward / back</span>
+		<span class="fly-prompt-key">Scroll sideways to pan left / right</span>
 		<span class="fly-prompt-key"><KeyCombo combo={keymap.flyUp} /> <KeyCombo combo={keymap.flyDown} /> up / down</span>
 		<span class="fly-prompt-key"><KeyCombo combo={keymap.interact} /> menu</span>
 		<span class="fly-prompt-key"><KeyCombo combo={keymap.toggleMouse} /> free the mouse</span>

@@ -1,0 +1,17 @@
+.color-swatch-control {
+	display: inline-flex;
+	align-items: center;
+	position: relative;
+}
+
+.color-swatch-control z-menu {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 0;
+	height: 0;
+}
+
+.color-menu-hidden {
+	display: none;
+}

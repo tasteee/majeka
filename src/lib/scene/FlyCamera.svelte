@@ -38,8 +38,8 @@
 		return positivePart - negativePart
 	}
 
-	// Horizontal WASD relative to where you look, Space / C
-	// straight up and down.
+	// W / S follow the viewing direction, A / D strafe horizontally,
+	// and Space / C move straight up and down.
 	const applyMovement = (delta: number): void => {
 		const held = input.heldCodes
 		const forwardAmount = toAxisValue(checkIsHeldAction('moveForward', held), checkIsHeldAction('moveBack', held))
@@ -48,17 +48,29 @@
 		const isBoosting = checkIsHeldAction('boost', held)
 		const speed = isBoosting ? props.speed * BOOST_FACTOR : props.speed
 
-		forwardVector.set(-Math.sin(cameraRig.yaw), 0, -Math.cos(cameraRig.yaw))
-		rightVector.set(-forwardVector.z, 0, forwardVector.x)
+		forwardVector.set(
+			-Math.sin(cameraRig.yaw) * Math.cos(cameraRig.pitch),
+			Math.sin(cameraRig.pitch),
+			-Math.cos(cameraRig.yaw) * Math.cos(cameraRig.pitch)
+		)
+		rightVector.set(Math.cos(cameraRig.yaw), 0, -Math.sin(cameraRig.yaw))
 		moveVector.set(0, 0, 0)
 		moveVector.addScaledVector(forwardVector, forwardAmount)
 		moveVector.addScaledVector(rightVector, strafeAmount)
 		moveVector.y += liftAmount
 
 		const isMoving = moveVector.lengthSq() > 0
-		if (!isMoving) return
-		moveVector.normalize().multiplyScalar(speed * delta)
-		cameraRig.position.add(moveVector)
+		if (isMoving) {
+			moveVector.normalize().multiplyScalar(speed * delta)
+			cameraRig.position.add(moveVector)
+		}
+
+		// Gesture deltas already represent distance, so consume them once
+		// without multiplying by frame time or normalizing away their size.
+		cameraRig.position.addScaledVector(forwardVector, input.forwardDelta * props.speed)
+		cameraRig.position.addScaledVector(rightVector, input.strafeDelta * props.speed)
+		input.forwardDelta = 0
+		input.strafeDelta = 0
 	}
 
 	const clampToBounds = (): void => {
