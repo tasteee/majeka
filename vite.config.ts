@@ -5,9 +5,8 @@ import { resolve } from 'node:path'
 // voxel: first-person voxel editor. Svelte 5 + Threlte,
 // with the compiled @tasteee/zest web components for all UI.
 //
-// The site build (root `pnpm build`) ships this app inside
-// the main site at <site base>/voxel/. VITE_BASE_PATH is the
-// site base (e.g. /tink/ on Pages).
+// VITE_BASE_PATH is the public base path of the deployed
+// site (e.g. /majeka/ on GitHub Pages). Defaults to /.
 const getSiteBase = (): string => {
 	const siteBase = process.env.VITE_BASE_PATH ?? '/'
 	const hasTrailingSlash = siteBase.endsWith('/')
@@ -17,7 +16,7 @@ const getSiteBase = (): string => {
 
 export default defineConfig((environment) => {
 	const isBuild = environment.command === 'build'
-	const base = isBuild ? `${getSiteBase()}voxel/` : '/'
+	const base = isBuild ? getSiteBase() : '/'
 
 	return {
 		base,
